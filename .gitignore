@@ -1,1 +1,4 @@
 ._*
+img/.nfs*
+output.csv
+.DS_Store
