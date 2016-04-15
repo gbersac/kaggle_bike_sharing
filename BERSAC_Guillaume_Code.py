@@ -1,9 +1,11 @@
+from sklearn.cross_validation import cross_val_predict
 import math
 import numpy as np
 import pandas as pd
 import time
 import datetime
 from sklearn import linear_model
+import matplotlib.pyplot as plt
 
 FILE_NAME = 'data.csv'
 
@@ -90,3 +92,17 @@ print("Residual sum of squares: %.2f"
       % np.mean((regr.predict(testX) - testY) ** 2))
 # Variance score: 1 is perfect prediction
 print('Variance score: %.2f' % regr.score(testX, testY))
+
+################################################################################
+# Plotting result                                                              #
+################################################################################
+lr = linear_model.LinearRegression()
+predicted = regr.predict(testX)
+
+fig, ax = plt.subplots()
+ax.scatter(testY, predicted)
+ax.plot([testY.min(), testY.max()], [testY.min(), testY.max()], 'k--', lw=4)
+ax.set_xlabel('Measured')
+ax.set_ylabel('Predicted')
+fig.savefig('img/final_lr.png')
+# plt.show()
