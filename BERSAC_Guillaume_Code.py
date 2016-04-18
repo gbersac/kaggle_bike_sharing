@@ -11,7 +11,13 @@ import matplotlib.pyplot as plt
 
 FILE_NAME_TRAIN = 'data.csv'
 FILE_NAME_TEST = 'test.csv'
+
+# Number of cluster to create for splitting the `hour` feature.
 NB_HOUR_CLUSTER = 12
+
+# Set to true if you want to train the model with all train data and generate
+# the solution to submit on kaggle
+OUTPUT_KAGGLE = False
 
 ################################################################################
 # Formatting data                                                              #
@@ -24,8 +30,9 @@ def formatData(data):
 		dayOfYear  = date.timetuple().tm_yday
 		hour = int(s[10:13])
 		weekDay = date.weekday()
-		return (hour, dayOfYear, weekDay)
-	data['hour'], data['dayOfYear'], data['weekDay'] = zip(*data["datetime"].map(splitDateTime))
+		year = date.year
+		return (hour, dayOfYear, weekDay, year)
+	data['hour'], data['dayOfYear'], data['weekDay'], data['year'] = zip(*data["datetime"].map(splitDateTime))
 	data.drop('datetime', axis=1, inplace=True)
 
 	### Refactor `weekDay` to non-multi-categorial columns
@@ -89,17 +96,19 @@ rawTestData = pd.read_csv(FILE_NAME_TEST)
 
 trainDS = formatData(rawTrainData) # DS for Data Set
 
-# This is the files which contain the predicting value for kaggle competition
-outputX = formatData(rawTestData).as_matrix()
+# This is the files which contain the data from which to predict for kaggle competition
+outputDS = formatData(rawTestData)
 
 ### Cluster hours
 # compute model
 KMean = cluster.KMeans(n_clusters=NB_HOUR_CLUSTER)
 KMean.fit(trainDS['hour'].reshape(-1, 1), trainDS['count'].reshape(-1, 1))
 
-def refatorHour2(data):
+def refatorHour(data):
 	"""
-	Transform an hour to a tuple with the cluster it belongs to set to one.
+	Transform `hour` to multiple series. One serie for each NB_HOUR_CLUSTER.
+	For one row, the value of the serie which number == kmean cluster assignation
+	equal one, 0 for others.
 	"""
 	global KMean
 	floatHours = data['hour'].astype('float64')
@@ -109,7 +118,8 @@ def refatorHour2(data):
 		serie = pd.Series(map(lambda x: int(x == i), serie))
 		data[serieName] = serie
 
-refatorHour2(trainDS)
+refatorHour(trainDS)
+refatorHour(outputDS)
 
 ### Refactor trainDS
 # Delete redundant values
@@ -122,16 +132,27 @@ cols = [col for col in trainDS if col != 'count'] + ['count']
 trainDS = trainDS[cols]
 
 # Split dataset
-# for the features
-cols = [col for col in trainDS if col != 'count']
-trainX = trainDS.loc[:trainDS.shape[0] * 4 / 5, cols].as_matrix()
-testX = trainDS.loc[trainDS.shape[0] * 4 / 5:, cols].as_matrix()
 
-# for the result
-trainY = trainDS.loc[:trainDS.shape[0] * 4 / 5, ['count']].as_matrix()
-testY = trainDS.loc[trainDS.shape[0] * 4 / 5 :, ['count']].as_matrix()
+if OUTPUT_KAGGLE:
+	# for the features
+	cols = [col for col in trainDS if col != 'count']
+	trainX = trainDS.loc[:, cols].as_matrix()
+	testX = outputDS.loc[:, cols].as_matrix()
 
-trainDS.to_csv('mytest.csv', index=False)
+	# for the result
+	trainY = trainDS.loc[:, ['count']].as_matrix()
+
+else:
+	# for the features
+	cols = [col for col in trainDS if col != 'count']
+	trainX = trainDS.loc[:trainDS.shape[0] * 4 / 5, cols].as_matrix()
+	testX = trainDS.loc[trainDS.shape[0] * 4 / 5:, cols].as_matrix()
+
+	# for the result
+	trainY = trainDS.loc[:trainDS.shape[0] * 4 / 5, ['count']].as_matrix()
+	testY = trainDS.loc[trainDS.shape[0] * 4 / 5 :, ['count']].as_matrix()
+
+# trainDS.to_csv('mytest.csv', index=False)
 
 ################################################################################
 # Linear regression model                                                      #
@@ -142,22 +163,23 @@ regr = linear_model.LinearRegression()
 regr.fit(trainX, trainY)
 predicted = regr.predict(testX)
 
-### Evaluate accuracy of the computed model
-# The mean square error
-print("### For linear regression")
-print("Residual sum of squares: %.2f"
-      % np.mean((predicted - testY) ** 2))
-# Variance score: 1 is perfect prediction
-print('Variance score: %.2f' % regr.score(testX, testY))
-print("")
+if not OUTPUT_KAGGLE:
+	### Evaluate accuracy of the computed model
+	# The mean square error
+	print("### For linear regression")
+	print("Residual sum of squares: %.2f"
+	      % np.mean((predicted - testY) ** 2))
+	# Variance score: 1 is perfect prediction
+	print('Variance score: %.2f' % regr.score(testX, testY))
+	print("")
 
-### Plot result
-fig, ax = plt.subplots()
-ax.scatter(testY, predicted)
-ax.plot([testY.min(), testY.max()], [testY.min(), testY.max()], 'k--', lw=4)
-ax.set_xlabel('Measured')
-ax.set_ylabel('Predicted')
-fig.savefig('img/final_lr.png')
+	### Plot result
+	fig, ax = plt.subplots()
+	ax.scatter(testY, predicted)
+	ax.plot([testY.min(), testY.max()], [testY.min(), testY.max()], 'k--', lw=4)
+	ax.set_xlabel('Measured')
+	ax.set_ylabel('Predicted')
+	fig.savefig('img/final_lr.png')
 
 ################################################################################
 # Random Forest model                                                          #
@@ -168,28 +190,38 @@ clf = ExtraTreesRegressor(n_estimators=10)
 clf = clf.fit(trainX, np.ravel(trainY))
 predicted = clf.predict(testX)
 
-### Evaluate accuracy of the computed model
-# The mean square error
-print("### For random forest")
-print("Residual sum of squares: %.2f" % np.mean((predicted - testY) ** 2))
-# Variance score: 1 is perfect prediction
-print('Variance score: %.2f' % clf.score(testX, testY))
-print("")
+if not OUTPUT_KAGGLE:
+	### Evaluate accuracy of the computed model
+	# The mean square error
+	print("### For random forest")
+	print("Residual sum of squares: %.2f" % np.mean((predicted - testY) ** 2))
+	# Variance score: 1 is perfect prediction
+	print('Variance score: %.2f' % clf.score(testX, testY))
+	print("")
 
-### Plot result
-fig, ax = plt.subplots()
-ax.scatter(testY, predicted)
-ax.plot([testY.min(), testY.max()], [testY.min(), testY.max()], 'k--', lw=4)
-ax.set_xlabel('Measured')
-ax.set_ylabel('Predicted')
-fig.savefig('img/final_clf.png')
+	### Plot result
+	fig, ax = plt.subplots()
+	ax.scatter(testY, predicted)
+	ax.plot([testY.min(), testY.max()], [testY.min(), testY.max()], 'k--', lw=4)
+	ax.set_xlabel('Measured')
+	ax.set_ylabel('Predicted')
+	fig.savefig('img/final_clf.png')
+
+	### Plot train
+	fig, ax = plt.subplots()
+	ax.scatter(trainY, clf.predict(trainX))
+	ax.plot([trainY.min(), trainY.max()], [trainY.min(), trainY.max()], 'k--', lw=4)
+	ax.set_xlabel('Measured')
+	ax.set_ylabel('Predicted')
+	fig.savefig('img/train_clf.png')
 
 ################################################################################
 # Output for kaggle competition                                                #
 ################################################################################
 
-# ### Output for the kaggle submission
-# df = pd.DataFrame({})
-# df['datetime'] = pd.read_csv(FILE_NAME_TEST)['datetime']
-# df['count'] = pd.Series(predicted)
-# df.to_csv('output.csv', index=False)
+if OUTPUT_KAGGLE:
+	### Output for the kaggle submission
+	df = pd.DataFrame({})
+	df['datetime'] = pd.read_csv(FILE_NAME_TEST)['datetime']
+	df['count'] = pd.Series(predicted)
+	df.to_csv('output.csv', index=False)
