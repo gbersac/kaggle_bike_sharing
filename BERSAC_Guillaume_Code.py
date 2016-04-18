@@ -1,3 +1,4 @@
+from sklearn import cluster, datasets
 from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
 from sklearn.cross_validation import cross_val_predict
 import math
@@ -10,6 +11,7 @@ import matplotlib.pyplot as plt
 
 FILE_NAME_TRAIN = 'data.csv'
 FILE_NAME_TEST = 'test.csv'
+NB_HOUR_CLUSTER = 12
 
 ################################################################################
 # Formatting data                                                              #
@@ -79,20 +81,35 @@ def formatData(data):
 			zip(*data['weather'].map(refactorWeather))
 	data.drop('weather', axis=1, inplace=True)
 
-	### Refactor `hour` to non-multi-categorial
-	def refactorHour(x):
-		toReturn = [0, 0, 0, 0, 0, 0, 0, 0]
-		toReturn[int(x / 3)] = 1
-		return tuple(toReturn)
-	data['0-2'], data['3-5'], data['6-8'], data['9-11'], data['12-14'], data['15-17'], data['18-20'], data['21-23'] \
-			= zip(*data['hour'].map(refactorHour))
-
 	return data
 
-trainDS = formatData(pd.read_csv(FILE_NAME_TRAIN)) # DS for Data Set
+### Read from files
+rawTrainData = pd.read_csv(FILE_NAME_TRAIN)
+rawTestData = pd.read_csv(FILE_NAME_TEST)
+
+trainDS = formatData(rawTrainData) # DS for Data Set
 
 # This is the files which contain the predicting value for kaggle competition
-outputX = formatData(pd.read_csv(FILE_NAME_TEST)).as_matrix()
+outputX = formatData(rawTestData).as_matrix()
+
+### Cluster hours
+# compute model
+KMean = cluster.KMeans(n_clusters=NB_HOUR_CLUSTER)
+KMean.fit(trainDS['hour'].reshape(-1, 1), trainDS['count'].reshape(-1, 1))
+
+def refatorHour2(data):
+	"""
+	Transform an hour to a tuple with the cluster it belongs to set to one.
+	"""
+	global KMean
+	floatHours = data['hour'].astype('float64')
+	for i in range(0, NB_HOUR_CLUSTER):
+		serieName = 'hourCluster' + str(i)
+		serie = KMean.predict(floatHours.reshape(-1, 1))
+		serie = pd.Series(map(lambda x: int(x == i), serie))
+		data[serieName] = serie
+
+refatorHour2(trainDS)
 
 ### Refactor trainDS
 # Delete redundant values
@@ -113,6 +130,8 @@ testX = trainDS.loc[trainDS.shape[0] * 4 / 5:, cols].as_matrix()
 # for the result
 trainY = trainDS.loc[:trainDS.shape[0] * 4 / 5, ['count']].as_matrix()
 testY = trainDS.loc[trainDS.shape[0] * 4 / 5 :, ['count']].as_matrix()
+
+trainDS.to_csv('mytest.csv', index=False)
 
 ################################################################################
 # Linear regression model                                                      #
@@ -169,8 +188,8 @@ fig.savefig('img/final_clf.png')
 # Output for kaggle competition                                                #
 ################################################################################
 
-### Output for the kaggle submission
-df = pd.DataFrame({})
-df['datetime'] = pd.read_csv(FILE_NAME_TEST)['datetime']
-df['count'] = pd.Series(predicted)
-df.to_csv('output.csv', index=False)
+# ### Output for the kaggle submission
+# df = pd.DataFrame({})
+# df['datetime'] = pd.read_csv(FILE_NAME_TEST)['datetime']
+# df['count'] = pd.Series(predicted)
+# df.to_csv('output.csv', index=False)

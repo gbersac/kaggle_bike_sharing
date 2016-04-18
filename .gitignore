@@ -1,4 +1,6 @@
 ._*
 img/.nfs*
 output.csv
+mytest.csv
+.nfs.*
 .DS_Store
