@@ -1,4 +1,4 @@
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
 from sklearn.cross_validation import cross_val_predict
 import math
 import numpy as np
@@ -79,6 +79,14 @@ def formatData(data):
 			zip(*data['weather'].map(refactorWeather))
 	data.drop('weather', axis=1, inplace=True)
 
+	### Refactor `hour` to non-multi-categorial
+	def refactorHour(x):
+		toReturn = [0, 0, 0, 0, 0, 0, 0, 0]
+		toReturn[int(x / 3)] = 1
+		return tuple(toReturn)
+	data['0-2'], data['3-5'], data['6-8'], data['9-11'], data['12-14'], data['15-17'], data['18-20'], data['21-23'] \
+			= zip(*data['hour'].map(refactorHour))
+
 	return data
 
 trainDS = formatData(pd.read_csv(FILE_NAME_TRAIN)) # DS for Data Set
@@ -99,12 +107,12 @@ trainDS = trainDS[cols]
 # Split dataset
 # for the features
 cols = [col for col in trainDS if col != 'count']
-trainX = trainDS.loc[:trainDS.shape[0] * 2 / 3, cols].as_matrix()
-testX = trainDS.loc[trainDS.shape[0] * 2 / 3:, cols].as_matrix()
+trainX = trainDS.loc[:trainDS.shape[0] * 4 / 5, cols].as_matrix()
+testX = trainDS.loc[trainDS.shape[0] * 4 / 5:, cols].as_matrix()
 
 # for the result
-trainY = trainDS.loc[:trainDS.shape[0] * 2 / 3, ['count']].as_matrix()
-testY = trainDS.loc[trainDS.shape[0] * 2 / 3 :, ['count']].as_matrix()
+trainY = trainDS.loc[:trainDS.shape[0] * 4 / 5, ['count']].as_matrix()
+testY = trainDS.loc[trainDS.shape[0] * 4 / 5 :, ['count']].as_matrix()
 
 ################################################################################
 # Linear regression model                                                      #
@@ -137,7 +145,7 @@ fig.savefig('img/final_lr.png')
 ################################################################################
 
 ### Compute model
-clf = RandomForestRegressor(n_estimators=10)
+clf = ExtraTreesRegressor(n_estimators=10)
 clf = clf.fit(trainX, np.ravel(trainY))
 predicted = clf.predict(testX)
 
