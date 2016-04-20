@@ -1,5 +1,6 @@
+# use with python3 `python3 eda.py`
 """
-A python script to have an overview of the data in data.csv.
+A python script to crate plots to have an overview of the data in data.csv.
 eda for Exploratory Data Analisys
 """
 
@@ -15,13 +16,14 @@ FILE_NAME = 'data.csv'
 
 # rearange data
 def splitDateTime(s):
-	date = time.mktime(datetime.datetime.strptime(s[0:10], "%Y-%m-%d").timetuple())
-	dayOfYear  = datetime.datetime.strptime(s[0:10], "%Y-%m-%d").timetuple().tm_yday
+	date = datetime.datetime.strptime(s[0:10], "%Y-%m-%d")
+	dayOfYear  = date.timetuple().tm_yday
 	hour = int(s[10:13])
-	return (date, hour, dayOfYear)
-
+	weekDay = date.weekday()
+	year = date.year
+	return (hour, dayOfYear, weekDay, year)
 data = pd.read_csv(FILE_NAME)
-data['date'], data['hour'], data['dayOfYear'] = zip(*data["datetime"].map(splitDateTime))
+data['hour'], data['dayOfYear'], data['weekDay'], data['year'] = zip(*data["datetime"].map(splitDateTime))
 data.drop('datetime', 1)
 
 # delete redundant columns

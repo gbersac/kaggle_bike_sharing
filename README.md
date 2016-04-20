@@ -1,19 +1,39 @@
-# Test techniques quantmetry
+# [Kaggle bike sharing demand](https://www.kaggle.com/c/bike-sharing-demand)
 
-## Partie I – Statistiques descriptives
+## Part 1 - Exploratory data analysis
 
-Tout d'abord il est important de modifier le jeu de données afin de pouvoir exploiter la colonne `datetime`. Celle-ci va être découplée en date ("yyyy/mm/dd") => `date`, heure => `hours` et jour de l'année => `dayOfYear`. Il n'y a que les 19 premiers jours pour chacun des mois. Ce n'est pas génant puisque c'est le cas pour chaque mois.
+First let's refactor the `datetime` feature. We can't anlyse non numerical values. We transform it ("yyyy/mm/dd") to `date`, `hours`, `dayOfYear` and `year`.
 
-![matrice de dispertion des parametres](img/scatter_matrix.png)
+![feature dispertion against each other matrix](img/scatter_matrix.png)
 
-Le principal outil d'exploration de données sera la matrice de dispertion d'une variable en fonction d'une autre. Comme nous cherchons à prédire la variable `count` (dernière ligne, dernière collone), nous regardons ses dépendances. Nous désignerons un graphique de la matrice a partir des index (0, 0) désignant le graphique en haut à gauche.
+The main data exploratory analysis tool is the matrix of repartition of a data against another. Since we are trying to predict the `count` feature, we look at its relations with other features.
 
-- Les corrélations les plus évidentes avec `count` sont `hour` et `weather`.
-- Les corrélations moins fortes mais significatives avec `count` sont `workingday`, `dayOfYear` et `holiday`.
-- Les autres semblent avoir moins d'importance.
+- The most evident features related to `count` are `hour` and `weather`.
+- Least significant linked features related to `count` are `workingday`, `dayOfYear` and `holiday`.
+- The `count` variable seems to follow a decreasing exponential equation. Linear regression is probably not a good model.
 
-![histogramme de la variable count](img/count_histo.png)
+![Casual vs Registered users](img/casual_vs_registered.png)
 
-D'apres la courbe de Nous remarquons que la variable `count` semble suivre une equation de type exponentiel decroissante.
+It seems like casual and registered users rent bike following a different model.
 
-## Partie II – Machine Learning
+## Part 2 – Machine Learning
+### Feature engineering
+#### Categorical variables
+
+#### The importance of `year`
+
+#### `casual` vs `registered`
+
+### Model explanation
+linear regression vs random forest
+
+### Performance criterions
+#### R squared
+
+#### Root Mean Squared Error
+
+### Improvement ideas
+- cross validation
+- test more models
+
+## Conclusion

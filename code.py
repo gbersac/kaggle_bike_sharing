@@ -1,3 +1,5 @@
+# use with python3 `python3 code.py`
+
 from sklearn import cluster, datasets
 from sklearn.ensemble import RandomForestRegressor, ExtraTreesRegressor
 from sklearn.cross_validation import cross_val_predict
@@ -17,7 +19,7 @@ NB_HOUR_CLUSTER = 12
 
 # Set to true if you want to train the model with all train data and generate
 # the solution to submit on kaggle
-OUTPUT_KAGGLE = True
+OUTPUT_KAGGLE = False
 
 ################################################################################
 # Model evaluation functions                                                   #
