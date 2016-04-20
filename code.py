@@ -17,7 +17,7 @@ NB_HOUR_CLUSTER = 12
 
 # Set to true if you want to train the model with all train data and generate
 # the solution to submit on kaggle
-OUTPUT_KAGGLE = False
+OUTPUT_KAGGLE = True
 
 ################################################################################
 # Model evaluation functions                                                   #
@@ -121,23 +121,21 @@ def formatData(data):
 
 ### Read from files
 rawTrainData = pd.read_csv(FILE_NAME_TRAIN)
+# This is the files which contain the data from which to predict for kaggle competition
 rawTestData = pd.read_csv(FILE_NAME_TEST)
 
 trainDS = formatData(rawTrainData) # DS for Data Set
-
-# This is the files which contain the data from which to predict for kaggle competition
 outputDS = formatData(rawTestData)
 
 ### Cluster hours
-# compute model
 KMean = cluster.KMeans(n_clusters=NB_HOUR_CLUSTER)
 KMean.fit(trainDS['hour'].reshape(-1, 1), trainDS['count'].reshape(-1, 1))
 
 def refatorHour(data):
 	"""
 	Transform `hour` to multiple series. One serie for each NB_HOUR_CLUSTER.
-	For one row, the value of the serie which number == kmean cluster assignation
-	equal one, 0 for others.
+	For one row, the value of the serie which number == kmean cluster
+	assignation equal one, 0 for others.
 	"""
 	global KMean
 	floatHours = data['hour'].astype('float64')
@@ -151,34 +149,35 @@ refatorHour(trainDS)
 refatorHour(outputDS)
 
 ### Refactor trainDS
-# Delete redundant values
-# `casual` + `registered` == `count`. They are not the final value.
-trainDS.drop('casual', axis=1, inplace=True)
-trainDS.drop('registered', axis=1, inplace=True)
-
 # Reorder columns
-cols = [col for col in trainDS if col != 'count'] + ['count']
+cols = [col for col in trainDS if col != 'casual' and col != 'registered'] + ['casual', 'registered']
 trainDS = trainDS[cols]
 
 # Split dataset
-
 if OUTPUT_KAGGLE:
 	# for the features
-	cols = [col for col in trainDS if col != 'count']
+	cols = [col for col in trainDS if col != 'registered' and col != 'casual' and col != 'count']
 	trainX = trainDS.loc[:, cols].as_matrix()
 	testX = outputDS.loc[:, cols].as_matrix()
 
 	# for the result
+	trainYCasual = trainDS.loc[:, ['casual']].as_matrix()
+	trainYRegistered = trainDS.loc[:, ['registered']].as_matrix()
 	trainY = trainDS.loc[:, ['count']].as_matrix()
 
 else:
 	# for the features
-	cols = [col for col in trainDS if col != 'count']
+	cols = [col for col in trainDS if col != 'registered' and col != 'casual' and col != 'count']
 	trainX = trainDS.loc[:trainDS.shape[0] * 4 / 5, cols].as_matrix()
 	testX = trainDS.loc[trainDS.shape[0] * 4 / 5:, cols].as_matrix()
 
 	# for the result
+	trainYCasual = trainDS.loc[:trainDS.shape[0] * 4 / 5, ['casual']].as_matrix()
+	trainYRegistered = trainDS.loc[:trainDS.shape[0] * 4 / 5, ['registered']].as_matrix()
 	trainY = trainDS.loc[:trainDS.shape[0] * 4 / 5, ['count']].as_matrix()
+
+	testYCasual = trainDS.loc[trainDS.shape[0] * 4 / 5 :, ['casual']].as_matrix()
+	testYRegistered = trainDS.loc[trainDS.shape[0] * 4 / 5 :, ['registered']].as_matrix()
 	testY = trainDS.loc[trainDS.shape[0] * 4 / 5 :, ['count']].as_matrix()
 
 ################################################################################
@@ -186,9 +185,11 @@ else:
 ################################################################################
 
 ### Compute linear regression
-regr = linear_model.LinearRegression()
-regr.fit(trainX, trainY)
-predicted = regr.predict(testX)
+regrCasual = linear_model.LinearRegression()
+regrRegistered = linear_model.LinearRegression()
+regrCasual.fit(trainX, trainYCasual)
+regrRegistered.fit(trainX, trainYRegistered)
+predicted = regrCasual.predict(testX) +regrRegistered.predict(testX)
 
 if not OUTPUT_KAGGLE:
 	### Evaluate accuracy of the computed model
@@ -211,9 +212,11 @@ if not OUTPUT_KAGGLE:
 ################################################################################
 
 ### Compute model
-clf = ExtraTreesRegressor(n_estimators=10)
-clf = clf.fit(trainX, np.ravel(trainY))
-predicted = clf.predict(testX)
+clfCasual = ExtraTreesRegressor(n_estimators=10)
+clfCasual = clfCasual.fit(trainX, np.ravel(trainYCasual))
+clfRegistered = ExtraTreesRegressor(n_estimators=10)
+clfRegistered = clfRegistered.fit(trainX, np.ravel(trainYRegistered))
+predicted = clfCasual.predict(testX) + clfRegistered.predict(testX)
 
 if not OUTPUT_KAGGLE:
 	### Evaluate accuracy of the computed model
@@ -231,13 +234,13 @@ if not OUTPUT_KAGGLE:
 	ax.set_ylabel('Predicted')
 	fig.savefig('img/final_clf.png')
 
-	### Plot train
-	fig, ax = plt.subplots()
-	ax.scatter(trainY, clf.predict(trainX))
-	ax.plot([trainY.min(), trainY.max()], [trainY.min(), trainY.max()], 'k--', lw=4)
-	ax.set_xlabel('Measured')
-	ax.set_ylabel('Predicted')
-	fig.savefig('img/train_clf.png')
+	# ### Plot train
+	# fig, ax = plt.subplots()
+	# ax.scatter(trainY, clf.predict(trainX))
+	# ax.plot([trainY.min(), trainY.max()], [trainY.min(), trainY.max()], 'k--', lw=4)
+	# ax.set_xlabel('Measured')
+	# ax.set_ylabel('Predicted')
+	# fig.savefig('img/train_clf.png')
 
 ################################################################################
 # Output for kaggle competition                                                #
