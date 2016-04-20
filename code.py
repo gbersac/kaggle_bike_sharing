@@ -20,6 +20,35 @@ NB_HOUR_CLUSTER = 12
 OUTPUT_KAGGLE = False
 
 ################################################################################
+# Model evaluation functions                                                   #
+################################################################################
+
+def rSquared(predicted, y):
+	"""
+	Compute the coefficient of determination (R squared)
+	Returned value between 0 and 1. The closer to 1, the better the model.
+	https://en.wikipedia.org/wiki/Coefficient_of_determination
+	"""
+	predicted = np.ravel(predicted)
+	y = np.ravel(y)
+	yMean = np.mean(y)
+	ttlSumSquared = np.sum((y - yMean) ** 2)
+	residualSumSquared = np.sum((y - predicted) ** 2)
+	return 1 - (residualSumSquared / ttlSumSquared)
+
+def rmse(predicted, y):
+	"""
+	Root Mean Squared Error
+	The lower it is, better is the model.
+	https://www.kaggle.com/wiki/RootMeanSquaredLogarithmicError
+	"""
+	predicted = np.ravel(predicted)
+	y = np.ravel(y)
+	# inner = np.subtract(np.log(predicted + 1), np.log(y + 1)) ** 2
+	inner = (predicted - y) ** 2
+	return np.sqrt(np.mean(inner))
+
+################################################################################
 # Formatting data                                                              #
 ################################################################################
 
@@ -152,8 +181,6 @@ else:
 	trainY = trainDS.loc[:trainDS.shape[0] * 4 / 5, ['count']].as_matrix()
 	testY = trainDS.loc[trainDS.shape[0] * 4 / 5 :, ['count']].as_matrix()
 
-# trainDS.to_csv('mytest.csv', index=False)
-
 ################################################################################
 # Linear regression model                                                      #
 ################################################################################
@@ -167,10 +194,8 @@ if not OUTPUT_KAGGLE:
 	### Evaluate accuracy of the computed model
 	# The mean square error
 	print("### For linear regression")
-	print("Residual sum of squares: %.2f"
-	      % np.mean((predicted - testY) ** 2))
-	# Variance score: 1 is perfect prediction
-	print('Variance score: %.2f' % regr.score(testX, testY))
+	print('r squared: %.2f' % rSquared(predicted, testY))
+	print('rmse: %.2f' % rmse(predicted, testY))
 	print("")
 
 	### Plot result
@@ -194,9 +219,8 @@ if not OUTPUT_KAGGLE:
 	### Evaluate accuracy of the computed model
 	# The mean square error
 	print("### For random forest")
-	print("Residual sum of squares: %.2f" % np.mean((predicted - testY) ** 2))
-	# Variance score: 1 is perfect prediction
-	print('Variance score: %.2f' % clf.score(testX, testY))
+	print('r squared: %.2f' % rSquared(predicted, testY))
+	print('rmse: %.2f' % rmse(predicted, testY))
 	print("")
 
 	### Plot result
