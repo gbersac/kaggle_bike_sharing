@@ -9,12 +9,12 @@ First, let's refactor the `datetime` feature. We can't analyse non numerical val
 The main data exploratory analysis tool is the scatter matrix of each feature against each other. Since we are trying to predict the `count` feature, we look at its relationship with other features.
 
 - The most obvious features related to `count` are `hour` and `weather`.
-- Least significant features related to `count` are `workingday`, `dayOfYear` and `holiday`.
+- The least significant features related to `count` are : `workingday`, `dayOfYear` and `holiday`.
 - The `count` variable seems to follow a decreasing exponential equation. Linear regression is probably not a good model.
 
 ![Casual vs Registered users](img/casual_vs_registered.png)
 
-It seems that casual and registered users rent bikes following different patterns.
+According to first findings, it seems that casual and registered users do not rent bikes in the same way.
 
 ## Part 2 – Machine Learning
 ### Feature engineering
